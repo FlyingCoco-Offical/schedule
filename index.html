@@ -754,7 +754,7 @@ input, textarea{ font-family: inherit; }
     <div id="cal-modal-body">
       <div id="cal-list"></div>
       <div id="cal-add-form">
-        <input id="cal-name-input" type="text" placeholder="Name (e.g. Flintridge Prep)" />
+        <input id="cal-name-input" type="text" placeholder="Name (e.g. Schedule)" />
         <input id="cal-url-input" type="text" placeholder="webcal://... or https://... link" />
         <button id="cal-add-btn">Add calendar</button>
       </div>
@@ -1096,7 +1096,7 @@ input, textarea{ font-family: inherit; }
       if(raw){ state.calendars = JSON.parse(raw); return; }
     }catch(e){ /* fall through to default seed */ }
     // First run: seed with the calendar originally set up for this board.
-    state.calendars = [{ id: "default", name: "Flintridge Prep", type: "url", url: DEFAULT_ICS_URL }];
+    state.calendars = [{ id: "default", name: "Schedule", type: "url", url: DEFAULT_ICS_URL }];
     await saveCalendars();
   }
   async function saveCalendars(){
