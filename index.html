@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Board — School Schedule</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --ink-bg: #212D26;
+  --ink-bg-2: #29372F;
+  --ink-bg-3: #1B2620;
+  --chalk: #F2EFE9;
+  --chalk-dim: #A9B7AE;
+  --chalk-faint: #7C8B81;
+  --chalk-yellow: #E8C468;
+  --chalk-blue: #85AECB;
+  --chalk-coral: #DE8078;
+  --chalk-sage: #97BB92;
+  --chalk-lavender: #B7A3D6;
+
+  --paper-bg: #EFE8D8;
+  --paper-bg-2: #F6F1E4;
+  --paper-line: #D9CFB6;
+  --paper-margin: #C77B72;
+  --paper-ink: #2B2620;
+  --paper-ink-dim: #776F5D;
+
+  --stamp-green: #4C7A5D;
+  --stamp-amber: #B98A3D;
+  --stamp-red: #B5453D;
+
+  --cork-bg: #3B2E23;
+  --cork-bg-2: #453626;
+  --cork-pin: #E8B84B;
+
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+*{ box-sizing: border-box; }
+html,body{ height:100%; margin:0; }
+body{
+  font-family: var(--font-body);
+  background: var(--ink-bg-3);
+  color: var(--chalk);
+  overflow: hidden;
+  display:flex;
+  flex-direction:column;
+}
+button{ font-family: inherit; cursor:pointer; }
+input, textarea{ font-family: inherit; }
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.15); border-radius:5px; }
+.paper ::-webkit-scrollbar-thumb{ background: rgba(43,38,32,0.2); }
+
+:focus-visible{ outline: 2px solid var(--chalk-yellow); outline-offset: 2px; }
+
+/* ---------- CORKBOARD (notifications) ---------- */
+#corkboard{
+  flex: 0 0 auto;
+  background:
+    repeating-linear-gradient(115deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 6px),
+    var(--cork-bg);
+  border-bottom: 3px solid var(--ink-bg-3);
+  padding: 14px 20px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+#corkboard h1{
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cork-pin);
+  margin: 0;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+#pin-strip{
+  display:flex;
+  gap:12px;
+  overflow-x:auto;
+  padding: 4px 2px 8px 2px;
+  flex: 1;
+}
+.pin-note{
+  flex: 0 0 auto;
+  background: var(--paper-bg-2);
+  color: var(--paper-ink);
+  font-size: 12.5px;
+  padding: 9px 12px 8px 12px;
+  border-radius: 2px;
+  max-width: 220px;
+  position: relative;
+  box-shadow: 2px 3px 6px rgba(0,0,0,0.35);
+  transform: rotate(var(--tilt, -1.5deg));
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  line-height: 1.35;
+}
+.pin-note:nth-child(3n){ --tilt: 1.5deg; }
+.pin-note:nth-child(3n+1){ --tilt: -2deg; }
+.pin-note::before{
+  content:'';
+  position:absolute;
+  top: -5px; left: 50%;
+  transform: translateX(-50%);
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--cork-pin);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.pin-note .pin-title{ font-weight:600; display:block; margin-bottom:2px; }
+.pin-note .pin-when{ font-family: var(--font-mono); font-size: 10.5px; color: var(--stamp-red); }
+.pin-note.overdue .pin-when{ color: var(--stamp-red); }
+.pin-note.soon .pin-when{ color: var(--stamp-amber); }
+#pin-empty{
+  color: rgba(242,239,233,0.55);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* ---------- MAIN GRID ---------- */
+#main{
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  min-height: 0;
+}
+
+/* ---------- CHALKBOARD (left, events) ---------- */
+#chalkboard{
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,0.03), transparent 60%),
+    var(--ink-bg);
+  padding: 22px 26px 40px 26px;
+  overflow-y: auto;
+  border-right: 2px solid var(--ink-bg-3);
+}
+#chalkboard .board-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#chalkboard h2{
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-style: italic;
+  font-size: 26px;
+  margin: 0;
+  color: var(--chalk);
+}
+#chalkboard .sub{
+  font-size: 12px;
+  color: var(--chalk-faint);
+  font-family: var(--font-mono);
+}
+#week-nav{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+#week-nav button{
+  background: transparent;
+  border: 1px solid rgba(242,239,233,0.3);
+  color: var(--chalk);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#week-nav button:hover{ border-color: var(--chalk-yellow); color: var(--chalk-yellow); }
+#week-label{
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--chalk-dim);
+  min-width: 118px;
+  text-align:center;
+}
+#week-today{
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: transparent;
+  border: 1px solid rgba(242,239,233,0.3);
+  color: var(--chalk-dim);
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+#week-today:hover{ border-color: var(--chalk-yellow); color: var(--chalk-yellow); }
+#chalk-week-empty{
+  color: var(--chalk-faint);
+  font-style: italic;
+  font-size: 13.5px;
+  padding: 20px 4px;
+}
+.day-group{ margin-bottom: 22px; }
+.day-label{
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chalk-yellow);
+  border-bottom: 1px dashed rgba(232,196,104,0.35);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+.event-row{
+  display:flex;
+  align-items:flex-start;
+  gap: 12px;
+  padding: 9px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+.event-row:hover{ background: rgba(255,255,255,0.04); }
+.event-row.is-done{ opacity: 0.4; }
+.event-dot{
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 6px currentColor;
+}
+.event-main{ flex: 1; min-width: 0; }
+.event-title{
+  font-size: 14.5px;
+  color: var(--chalk);
+  line-height: 1.35;
+  word-break: break-word;
+}
+.event-row.is-done .event-title{ text-decoration: line-through; }
+.event-meta{
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--chalk-dim);
+  margin-top: 3px;
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.event-tag{
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  border: 1px solid currentColor;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 3px;
+}
+.tag-overdue{ color: var(--chalk-coral); }
+.tag-soon{ color: var(--chalk-yellow); }
+.tag-later{ color: var(--chalk-faint); border-color: rgba(169,183,174,0.4); }
+
+#chalk-status{
+  color: var(--chalk-dim);
+  font-size: 13.5px;
+  padding: 30px 4px;
+  line-height: 1.6;
+}
+#chalk-status .err-title{ color: var(--chalk-coral); font-weight:600; font-family: var(--font-display); font-size: 17px; display:block; margin-bottom:6px;}
+#chalk-status button{
+  margin-top: 10px;
+  margin-right: 8px;
+  background: transparent;
+  border: 1px solid var(--chalk-dim);
+  color: var(--chalk);
+  padding: 7px 13px;
+  border-radius: 5px;
+  font-size: 12.5px;
+}
+#chalk-status button:hover{ border-color: var(--chalk-yellow); color: var(--chalk-yellow); }
+#chalk-status textarea{
+  width: 100%;
+  min-height: 90px;
+  margin-top: 10px;
+  background: var(--ink-bg-2);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--chalk);
+  border-radius: 5px;
+  padding: 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  display:none;
+}
+.dust-dot{ display:inline-block; width:4px; height:4px; border-radius:50%; background: var(--chalk-faint); margin: 0 2px; animation: pulse 1.4s infinite ease-in-out; }
+.dust-dot:nth-child(2){ animation-delay: 0.2s; }
+.dust-dot:nth-child(3){ animation-delay: 0.4s; }
+@keyframes pulse{ 0%,80%,100%{ opacity:0.2; } 40%{ opacity:1; } }
+
+/* ---------- PAPER / INDEX CARDS (right, tracker) ---------- */
+#tracker{
+  background: var(--paper-bg);
+  position: relative;
+  padding: 22px 18px 40px 26px;
+  overflow-y: auto;
+  color: var(--paper-ink);
+}
+.tracker-head{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tracker-head h2{
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  margin: 0;
+  color: var(--paper-ink);
+}
+.hide-done{
+  font-size: 11.5px;
+  color: var(--paper-ink-dim);
+  display:flex;
+  align-items:center;
+  gap: 5px;
+  font-family: var(--font-mono);
+}
+.task-card{
+  background: var(--paper-bg-2);
+  border: 1px solid var(--paper-line);
+  border-left: 4px solid var(--card-accent, var(--chalk-yellow));
+  border-radius: 3px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 1px 2px 4px rgba(43,38,32,0.08);
+  position: relative;
+}
+.task-title{
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  margin-bottom: 3px;
+}
+.task-due{
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--paper-ink-dim);
+  margin-bottom: 9px;
+}
+.task-due.overdue{ color: var(--stamp-red); }
+.status-row{
+  display:flex;
+  gap: 6px;
+}
+.status-btn{
+  flex:1;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  padding: 5px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--paper-line);
+  background: transparent;
+  color: var(--paper-ink-dim);
+  text-align:center;
+}
+.status-btn[data-s="todo"].active{ background: var(--paper-ink-dim); color: var(--paper-bg-2); border-color: var(--paper-ink-dim); }
+.status-btn[data-s="progress"].active{ background: var(--stamp-amber); color: #fff; border-color: var(--stamp-amber); }
+.status-btn[data-s="done"].active{ background: var(--stamp-green); color: #fff; border-color: var(--stamp-green); }
+.stamp{
+  position: absolute;
+  top: 8px; right: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--stamp-green);
+  border: 1.5px solid var(--stamp-green);
+  border-radius: 3px;
+  padding: 1px 6px;
+  transform: rotate(-8deg);
+  opacity: 0.85;
+  text-transform: uppercase;
+}
+#tracker-status{
+  color: var(--paper-ink-dim);
+  font-size: 13px;
+  padding: 20px 4px;
+}
+#tracker-empty{
+  color: var(--paper-ink-dim);
+  font-size: 13px;
+  font-style: italic;
+  padding: 10px 4px;
+}
+
+/* ---------- AI BUBBLE ---------- */
+#ai-bubble{
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--ink-bg-2);
+  border: 1.5px solid var(--chalk-yellow);
+  color: var(--chalk-yellow);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-style: italic;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.45);
+  z-index: 40;
+  transition: transform 0.15s ease;
+}
+#ai-bubble:hover{ transform: scale(1.06); }
+#ai-panel{
+  position: fixed;
+  bottom: 86px;
+  right: 22px;
+  width: 340px;
+  max-width: calc(100vw - 44px);
+  height: 420px;
+  max-height: calc(100vh - 130px);
+  background: var(--paper-bg-2);
+  border: 1px solid var(--paper-line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 41;
+}
+#ai-panel.open{ display:flex; }
+#ai-panel-head{
+  background: var(--ink-bg-2);
+  color: var(--chalk);
+  padding: 10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14.5px;
+}
+#ai-panel-head button{
+  background: none; border: none; color: var(--chalk-dim); font-size: 15px; padding: 2px 6px;
+}
+#ai-messages{
+  flex:1;
+  overflow-y: auto;
+  padding: 12px;
+  display:flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ai-msg{
+  font-size: 12.5px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 8px;
+  max-width: 88%;
+}
+.ai-msg.user{
+  align-self: flex-end;
+  background: var(--stamp-amber);
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+.ai-msg.assistant{
+  align-self: flex-start;
+  background: var(--paper-bg);
+  border: 1px solid var(--paper-line);
+  color: var(--paper-ink);
+  border-bottom-left-radius: 2px;
+  white-space: pre-wrap;
+}
+.ai-msg.thinking{ color: var(--paper-ink-dim); font-style: italic; }
+#ai-input-row{
+  display:flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid var(--paper-line);
+  background: var(--paper-bg-2);
+}
+#ai-input{
+  flex:1;
+  border: 1px solid var(--paper-line);
+  border-radius: 5px;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  background: #fff;
+  color: var(--paper-ink);
+}
+#ai-send{
+  background: var(--stamp-green);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+#ai-send:disabled{ opacity: 0.5; cursor: default; }
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 880px){
+  #main{ grid-template-columns: 1fr; overflow-y: auto; }
+  #chalkboard, #tracker{ overflow-y: visible; border-right: none; }
+  body{ overflow-y: auto; }
+  #corkboard h1{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<div id="corkboard">
+  <h1>The Board</h1>
+  <div id="pin-strip">
+    <span id="pin-empty">Loading what's pinned…</span>
+  </div>
+</div>
+
+<div id="main">
+  <section id="chalkboard" aria-label="Upcoming events">
+    <div class="board-head">
+      <h2>This week</h2>
+      <div id="week-nav">
+        <button id="week-prev" aria-label="Previous week">‹</button>
+        <span id="week-label"></span>
+        <button id="week-next" aria-label="Next week">›</button>
+        <button id="week-today">Today</button>
+      </div>
+    </div>
+    <div id="chalk-status">
+      <span class="dust-dot"></span><span class="dust-dot"></span><span class="dust-dot"></span>
+      &nbsp; reading your calendar
+    </div>
+    <div id="chalk-list"></div>
+    <div id="chalk-week-empty" style="display:none;">Nothing on the board this week.</div>
+  </section>
+
+  <section id="tracker" aria-label="Task tracker">
+    <div class="tracker-head">
+      <h2>Track it</h2>
+      <label class="hide-done"><input type="checkbox" id="hide-done-toggle" /> hide done</label>
+    </div>
+    <div id="tracker-status">Waiting on the calendar…</div>
+    <div id="tracker-list"></div>
+    <div id="tracker-empty" style="display:none;">Nothing left to track here.</div>
+  </section>
+</div>
+
+<button id="ai-bubble" aria-label="Open AI helper" aria-expanded="false">*</button>
+<div id="ai-panel" role="dialog" aria-label="AI helper chat">
+  <div id="ai-panel-head">
+    <span>Ask about your board</span>
+    <button id="ai-close" aria-label="Close chat">✕</button>
+  </div>
+  <div id="ai-messages"></div>
+  <div id="ai-input-row">
+    <input id="ai-input" type="text" placeholder="What's due this week?" />
+    <button id="ai-send">Ask</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- CONFIG ----------
+  const RAW_ICS_URL = "https://flintridgeprep.myschoolapp.com/podium/feed/iCal.aspx?z=OivLQPLJOKYMGyGIqYC3M7bNmNWSFfU3Ym59A45ngOCUcmEBedAXB8DpfHJyiXPuVp9jhNsYtz7VkYxrqeVc5A%3d%3d";
+  const PROXIES = [
+    url => "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+    url => "https://corsproxy.io/?" + encodeURIComponent(url),
+    url => "https://thingproxy.freeboard.io/fetch/" + url
+  ];
+  const PAST_DAYS_WINDOW = 10;     // how far back to still show overdue items
+  const FUTURE_DAYS_WINDOW = 120;  // how far ahead to show
+  const DUE_SOON_MS = 3 * 24 * 60 * 60 * 1000; // "almost due" = within 3 days
+  const CATEGORY_COLORS = ["var(--chalk-yellow)","var(--chalk-blue)","var(--chalk-coral)","var(--chalk-sage)","var(--chalk-lavender)"];
+
+  const state = {
+    events: [],
+    statuses: {}, // uid -> 'todo' | 'progress' | 'done'
+    chat: [],     // {role, content}
+    weekStart: startOfWeek(new Date())
+  };
+
+  // ---------- STORAGE (works inside Claude.ai artifacts, falls back to localStorage when hosted elsewhere) ----------
+  async function storageGet(key){
+    if(window.storage){
+      try{ const r = await window.storage.get(key, false); return r ? r.value : null; }
+      catch(e){ return null; }
+    }
+    try{ return localStorage.getItem(key); }catch(e){ return null; }
+  }
+  async function storageSet(key, value){
+    if(window.storage){
+      try{ await window.storage.set(key, value, false); return; }catch(e){ /* fall through */ }
+    }
+    try{ localStorage.setItem(key, value); }catch(e){ /* non-fatal */ }
+  }
+
+  // ---------- WEEK HELPERS ----------
+  function startOfWeek(d){
+    const nd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    nd.setDate(nd.getDate() - nd.getDay());
+    return nd;
+  }
+  function addDays(d, n){
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  }
+  function eventsInWeek(events, weekStart){
+    const weekEnd = addDays(weekStart, 7);
+    return events.filter(e => e.start >= weekStart && e.start < weekEnd);
+  }
+
+  // ---------- HELPERS ----------
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function hashColor(str){
+    let h = 0;
+    for(const c of String(str)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return CATEGORY_COLORS[h % CATEGORY_COLORS.length];
+  }
+  function fmtDayLabel(d){
+    return d.toLocaleDateString(undefined, { weekday:'long', month:'short', day:'numeric' });
+  }
+  function fmtTime(d, allDay){
+    if(allDay) return "All day";
+    return d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+  }
+  function dayKey(d){
+    return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
+  }
+  function relativeLabel(d, now){
+    const diffMs = d - now;
+    const diffDays = Math.round(diffMs / 86400000);
+    if(diffMs < 0) return "overdue";
+    if(diffDays <= 0) return "today";
+    if(diffDays === 1) return "tomorrow";
+    if(diffDays <= 6) return "in " + diffDays + "d";
+    return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  }
+
+  // ---------- ICS PARSING ----------
+  function parseICS(text){
+    const unfolded = text.replace(/\r\n/g,"\n").replace(/\n[ \t]/g,"");
+    const lines = unfolded.split("\n");
+    const events = [];
+    let cur = null;
+
+    for(const rawLine of lines){
+      const line = rawLine.trim();
+      if(line === "BEGIN:VEVENT"){ cur = {}; continue; }
+      if(line === "END:VEVENT"){ if(cur) events.push(cur); cur = null; continue; }
+      if(!cur) continue;
+
+      const colonIdx = line.indexOf(":");
+      if(colonIdx === -1) continue;
+      const left = line.slice(0, colonIdx);
+      const value = line.slice(colonIdx + 1);
+      const [key, ...paramParts] = left.split(";");
+      const params = {};
+      paramParts.forEach(p => {
+        const [pk, pv] = p.split("=");
+        if(pk) params[pk] = pv;
+      });
+
+      switch(key){
+        case "UID": cur.uid = value; break;
+        case "SUMMARY": cur.title = value.replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\n/gi," "); break;
+        case "DESCRIPTION": cur.description = value.replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\n/gi,"\n"); break;
+        case "LOCATION": cur.location = value.replace(/\\,/g,","); break;
+        case "DTSTART": cur.start = parseICSDate(value, params); cur.allDay = /^\d{8}$/.test(value); break;
+        case "DTEND": cur.end = parseICSDate(value, params); break;
+        default: break;
+      }
+    }
+    return events;
+  }
+
+  function parseICSDate(value, params){
+    // All-day: YYYYMMDD
+    if(/^\d{8}$/.test(value)){
+      const y = +value.slice(0,4), m = +value.slice(4,6), d = +value.slice(6,8);
+      return new Date(y, m-1, d, 0, 0, 0);
+    }
+    // Date-time: YYYYMMDDTHHMMSS(Z?)
+    const m2 = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/);
+    if(m2){
+      const [, y, mo, d, h, mi, s, z] = m2;
+      if(z === "Z"){
+        return new Date(Date.UTC(+y, +mo-1, +d, +h, +mi, +s));
+      }
+      return new Date(+y, +mo-1, +d, +h, +mi, +s);
+    }
+    return null;
+  }
+
+  function normalize(raw){
+    return raw
+      .filter(e => e.start)
+      .map((e, i) => ({
+        uid: e.uid || ("evt-" + i + "-" + (e.title||"").slice(0,10)),
+        title: e.title || "Untitled",
+        start: e.start,
+        allDay: !!e.allDay,
+        location: e.location || "",
+        color: hashColor((e.title||"").split(/[-:]/)[0].trim() || e.title || "x")
+      }))
+      .sort((a,b) => a.start - b.start);
+  }
+
+  function filterRelevant(events){
+    const now = new Date();
+    const past = new Date(now.getTime() - PAST_DAYS_WINDOW*86400000);
+    const future = new Date(now.getTime() + FUTURE_DAYS_WINDOW*86400000);
+    return events.filter(e => e.start >= past && e.start <= future);
+  }
+
+  // ---------- FETCH ----------
+  async function fetchICS(){
+    try{
+      const r = await fetch(RAW_ICS_URL, { mode: "cors" });
+      if(r.ok){ const t = await r.text(); if(t.includes("BEGIN:VCALENDAR")) return t; }
+    }catch(e){ /* fall through to proxies */ }
+
+    for(const build of PROXIES){
+      try{
+        const r = await fetch(build(RAW_ICS_URL));
+        if(r.ok){
+          const t = await r.text();
+          if(t.includes("BEGIN:VCALENDAR")) return t;
+        }
+      }catch(e){ /* try next proxy */ }
+    }
+    throw new Error("Could not reach the calendar feed from the browser.");
+  }
+
+  async function loadCalendar(){
+    const chalkStatus = document.getElementById("chalk-status");
+    const trackerStatus = document.getElementById("tracker-status");
+    try{
+      const text = await fetchICS();
+      const events = normalize(parseICS(text));
+      state.events = filterRelevant(events);
+      chalkStatus.style.display = "none";
+      trackerStatus.style.display = "none";
+      renderAll();
+    }catch(err){
+      showFetchError();
+    }
+  }
+
+  function showFetchError(){
+    const chalkStatus = document.getElementById("chalk-status");
+    const trackerStatus = document.getElementById("tracker-status");
+    chalkStatus.style.display = "block";
+    chalkStatus.innerHTML =
+      '<span class="err-title">Couldn\u2019t load the feed automatically</span>' +
+      'The school calendar doesn\u2019t allow this page to fetch it directly from the browser. You can retry, or add the calendar file yourself below.' +
+      '<div><button id="retry-btn">Try again</button><button id="upload-btn">Upload .ics file</button><button id="paste-btn">Paste calendar text</button></div>' +
+      '<textarea id="paste-area" placeholder="Paste the raw .ics content here, then press Enter"></textarea>' +
+      '<input type="file" id="file-input" accept=".ics" style="display:none" />';
+    trackerStatus.textContent = "Add your calendar on the left to start tracking tasks.";
+
+    document.getElementById("retry-btn").addEventListener("click", loadCalendar);
+    document.getElementById("upload-btn").addEventListener("click", () => document.getElementById("file-input").click());
+    document.getElementById("file-input").addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if(!file) return;
+      const text = await file.text();
+      applyManualICS(text);
+    });
+    document.getElementById("paste-btn").addEventListener("click", () => {
+      const ta = document.getElementById("paste-area");
+      ta.style.display = ta.style.display === "block" ? "none" : "block";
+      if(ta.style.display === "block") ta.focus();
+    });
+    document.getElementById("paste-area").addEventListener("keydown", (ev) => {
+      if(ev.key === "Enter" && !ev.shiftKey){
+        ev.preventDefault();
+        applyManualICS(ev.target.value);
+      }
+    });
+  }
+
+  function applyManualICS(text){
+    try{
+      const events = normalize(parseICS(text));
+      state.events = filterRelevant(events);
+      document.getElementById("chalk-status").style.display = "none";
+      document.getElementById("tracker-status").style.display = "none";
+      renderAll();
+    }catch(e){
+      alert("That didn't look like valid calendar (.ics) content.");
+    }
+  }
+
+  // ---------- STORAGE ----------
+  async function loadStatuses(){
+    try{
+      const raw = await storageGet("statuses");
+      if(raw) state.statuses = JSON.parse(raw);
+    }catch(e){ state.statuses = {}; }
+  }
+  async function saveStatuses(){
+    await storageSet("statuses", JSON.stringify(state.statuses));
+  }
+  function setStatus(uid, status){
+    state.statuses[uid] = status;
+    saveStatuses();
+    renderAll();
+  }
+
+  // ---------- RENDER ----------
+  function renderAll(){
+    renderPins();
+    renderChalkboard();
+    renderTracker();
+  }
+
+  function renderPins(){
+    const now = new Date();
+    const strip = document.getElementById("pin-strip");
+    const items = state.events.filter(e => {
+      const st = state.statuses[e.uid];
+      if(st === "done") return false;
+      const diff = e.start - now;
+      return diff < DUE_SOON_MS; // overdue or within window
+    }).sort((a,b) => a.start - b.start).slice(0, 12);
+
+    if(items.length === 0){
+      strip.innerHTML = '<span id="pin-empty">Nothing pinned — you\u2019re caught up for now.</span>';
+      return;
+    }
+    strip.innerHTML = items.map(e => {
+      const overdue = e.start < now;
+      const cls = overdue ? "overdue" : "soon";
+      const when = overdue ? "overdue \u2014 " + fmtDayLabel(e.start) : relativeLabel(e.start, now) + (e.allDay ? "" : ", " + fmtTime(e.start, e.allDay));
+      return '<button class="pin-note ' + cls + '" data-uid="' + escapeHtml(e.uid) + '">' +
+        '<span class="pin-title">' + escapeHtml(e.title) + '</span>' +
+        '<span class="pin-when">' + escapeHtml(when) + '</span>' +
+        '</button>';
+    }).join("");
+
+    strip.querySelectorAll(".pin-note").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const uid = btn.dataset.uid;
+        const target = state.events.find(e => e.uid === uid);
+        if(target){
+          const targetWeek = startOfWeek(target.start);
+          if(targetWeek.getTime() !== state.weekStart.getTime()){
+            state.weekStart = targetWeek;
+            renderChalkboard();
+            renderTracker();
+          }
+        }
+        requestAnimationFrame(() => {
+          const row = document.querySelector('.event-row[data-uid="' + CSS.escape(uid) + '"]');
+          if(row){ row.scrollIntoView({ behavior:"smooth", block:"center" }); row.style.background = "rgba(232,196,104,0.18)"; setTimeout(() => row.style.background = "", 1200); }
+        });
+      });
+    });
+  }
+
+  function renderWeekLabel(){
+    const label = document.getElementById("week-label");
+    const end = addDays(state.weekStart, 6);
+    const sameMonth = state.weekStart.getMonth() === end.getMonth();
+    const startStr = state.weekStart.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    const endStr = end.toLocaleDateString(undefined, sameMonth ? { day:'numeric' } : { month:'short', day:'numeric' });
+    label.textContent = startStr + "–" + endStr;
+  }
+
+  function renderChalkboard(){
+    const list = document.getElementById("chalk-list");
+    const weekEmpty = document.getElementById("chalk-week-empty");
+    renderWeekLabel();
+
+    const weekEvents = eventsInWeek(state.events, state.weekStart);
+    if(weekEvents.length === 0){
+      list.innerHTML = "";
+      weekEmpty.style.display = state.events.length ? "block" : "none";
+      return;
+    }
+    weekEmpty.style.display = "none";
+    const now = new Date();
+
+    const groups = {};
+    const order = [];
+    weekEvents.forEach(e => {
+      const k = dayKey(e.start);
+      if(!groups[k]){ groups[k] = []; order.push(k); }
+      groups[k].push(e);
+    });
+
+    list.innerHTML = order.map(k => {
+      const dayEvents = groups[k];
+      const label = fmtDayLabel(dayEvents[0].start);
+      const rows = dayEvents.map(e => {
+        const status = state.statuses[e.uid];
+        const isDone = status === "done";
+        const overdue = e.start < now && !isDone;
+        const diff = e.start - now;
+        let tag = "";
+        if(overdue) tag = '<span class="event-tag tag-overdue">overdue</span>';
+        else if(diff < DUE_SOON_MS) tag = '<span class="event-tag tag-soon">soon</span>';
+        else tag = '<span class="event-tag tag-later">' + escapeHtml(relativeLabel(e.start, now)) + '</span>';
+
+        return '<div class="event-row' + (isDone ? " is-done" : "") + '" data-uid="' + escapeHtml(e.uid) + '">' +
+          '<span class="event-dot" style="color:' + e.color + ';background:' + e.color + ';"></span>' +
+          '<div class="event-main">' +
+            '<div class="event-title">' + escapeHtml(e.title) + '</div>' +
+            '<div class="event-meta"><span>' + escapeHtml(fmtTime(e.start, e.allDay)) + '</span>' +
+            (e.location ? '<span>' + escapeHtml(e.location) + '</span>' : '') + '</div>' +
+          '</div>' +
+          tag +
+        '</div>';
+      }).join("");
+      return '<div class="day-group"><div class="day-label">' + escapeHtml(label) + '</div>' + rows + '</div>';
+    }).join("");
+  }
+
+  function renderTracker(){
+    const list = document.getElementById("tracker-list");
+    const empty = document.getElementById("tracker-empty");
+    const hideDone = document.getElementById("hide-done-toggle").checked;
+    const now = new Date();
+
+    let items = eventsInWeek(state.events, state.weekStart).slice().sort((a,b) => {
+      const aOver = a.start < now && state.statuses[a.uid] !== "done";
+      const bOver = b.start < now && state.statuses[b.uid] !== "done";
+      if(aOver !== bOver) return aOver ? -1 : 1;
+      return a.start - b.start;
+    });
+    if(hideDone) items = items.filter(e => state.statuses[e.uid] !== "done");
+
+    if(items.length === 0){
+      list.innerHTML = "";
+      empty.style.display = "block";
+      return;
+    }
+    empty.style.display = "none";
+
+    list.innerHTML = items.map(e => {
+      const status = state.statuses[e.uid] || "todo";
+      const overdue = e.start < now && status !== "done";
+      const dueLabel = (e.allDay ? "" : fmtTime(e.start, e.allDay) + " \u00b7 ") + fmtDayLabel(e.start);
+      return '<div class="task-card" style="--card-accent:' + e.color + ';" data-uid="' + escapeHtml(e.uid) + '">' +
+        (status === "done" ? '<span class="stamp">done</span>' : '') +
+        '<div class="task-title">' + escapeHtml(e.title) + '</div>' +
+        '<div class="task-due' + (overdue ? " overdue" : "") + '">' + escapeHtml(overdue ? "overdue \u2014 " + dueLabel : dueLabel) + '</div>' +
+        '<div class="status-row">' +
+          '<button class="status-btn" data-s="todo"' + (status==="todo" ? ' aria-pressed="true"':'') + '>To do</button>' +
+          '<button class="status-btn" data-s="progress"' + (status==="progress" ? ' aria-pressed="true"':'') + '>Working</button>' +
+          '<button class="status-btn" data-s="done"' + (status==="done" ? ' aria-pressed="true"':'') + '>Done</button>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+
+    list.querySelectorAll(".status-btn").forEach(btn => {
+      const card = btn.closest(".task-card");
+      const current = state.statuses[card.dataset.uid] || "todo";
+      if(btn.dataset.s === current) btn.classList.add("active");
+      btn.addEventListener("click", () => setStatus(card.dataset.uid, btn.dataset.s));
+    });
+  }
+
+  document.getElementById("hide-done-toggle").addEventListener("change", renderTracker);
+
+  document.getElementById("week-prev").addEventListener("click", () => {
+    state.weekStart = addDays(state.weekStart, -7);
+    renderChalkboard();
+    renderTracker();
+  });
+  document.getElementById("week-next").addEventListener("click", () => {
+    state.weekStart = addDays(state.weekStart, 7);
+    renderChalkboard();
+    renderTracker();
+  });
+  document.getElementById("week-today").addEventListener("click", () => {
+    state.weekStart = startOfWeek(new Date());
+    renderChalkboard();
+    renderTracker();
+  });
+
+  // ---------- AI BUBBLE ----------
+  const bubble = document.getElementById("ai-bubble");
+  const panel = document.getElementById("ai-panel");
+  const messagesEl = document.getElementById("ai-messages");
+  const inputEl = document.getElementById("ai-input");
+  const sendBtn = document.getElementById("ai-send");
+
+  function toggleChat(open){
+    const isOpen = open !== undefined ? open : !panel.classList.contains("open");
+    panel.classList.toggle("open", isOpen);
+    bubble.setAttribute("aria-expanded", String(isOpen));
+    if(isOpen && state.chat.length === 0){
+      pushMessage("assistant", "Hi! I can see what's on your board. Ask me to help you prioritize, explain an assignment, or plan your week.");
+    }
+    if(isOpen) inputEl.focus();
+  }
+  bubble.addEventListener("click", () => toggleChat());
+  document.getElementById("ai-close").addEventListener("click", () => toggleChat(false));
+
+  function pushMessage(role, content){
+    state.chat.push({ role, content });
+    const div = document.createElement("div");
+    div.className = "ai-msg " + role;
+    div.textContent = content;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function buildScheduleSummary(){
+    const now = new Date();
+    const upcoming = state.events
+      .filter(e => e.start >= new Date(now.getTime() - 86400000))
+      .slice(0, 40)
+      .map(e => {
+        const status = state.statuses[e.uid] || "todo";
+        return "- " + e.title + " | due " + e.start.toLocaleString() + " | status: " + status;
+      }).join("\n");
+    return upcoming || "No events currently loaded.";
+  }
+
+  // Pollinations AI's text endpoint is free, needs no signup, no API key, and no card —
+  // works the same whether this page runs inside Claude.ai or is hosted standalone (e.g. GitHub Pages).
+  async function callFreeAI(systemPrompt, apiMessages){
+    const messages = [{ role: "system", content: systemPrompt }, ...apiMessages];
+    const r = await fetch("https://gen.pollinations.ai/text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai", messages })
+    });
+    if(!r.ok) throw new Error("AI_ERROR");
+    const raw = await r.text();
+    // Usually plain text; occasionally a JSON message object — handle both.
+    try{
+      const parsed = JSON.parse(raw);
+      if(typeof parsed === "string") return parsed.trim();
+      if(parsed && typeof parsed.content === "string") return parsed.content.trim();
+      if(parsed && parsed.choices && parsed.choices[0] && parsed.choices[0].message) return parsed.choices[0].message.content.trim();
+    }catch(e){ /* not JSON, that's fine */ }
+    return raw.trim();
+  }
+
+  async function sendChatMessage(){
+    const text = inputEl.value.trim();
+    if(!text) return;
+    inputEl.value = "";
+    sendBtn.disabled = true;
+    pushMessage("user", text);
+    const thinkingEl = pushMessage("assistant", "thinking…");
+    thinkingEl.classList.add("thinking");
+
+    const systemPrompt = "You are a concise, encouraging assistant helping a high school student manage their school calendar and assignments. " +
+      "Here is their current schedule and task statuses (status is one of todo, progress, done):\n" + buildScheduleSummary() +
+      "\nKeep answers short and practical. Reference specific items by name when relevant. Today's date/time is " + new Date().toLocaleString() + ".";
+
+    const apiMessages = state.chat
+      .filter(m => m.role === "user" || m.role === "assistant")
+      .slice(-10)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    try{
+      const reply = await callFreeAI(systemPrompt, apiMessages);
+      thinkingEl.remove();
+      state.chat.pop(); // remove placeholder from history
+      pushMessage("assistant", reply || "I couldn't come up with a reply just now — try asking again.");
+    }catch(e){
+      thinkingEl.remove();
+      state.chat.pop();
+      pushMessage("assistant", "Something went wrong reaching the assistant. Please try again in a moment.");
+    }finally{
+      sendBtn.disabled = false;
+    }
+  }
+  sendBtn.addEventListener("click", sendChatMessage);
+  inputEl.addEventListener("keydown", (ev) => { if(ev.key === "Enter") sendChatMessage(); });
+
+  // ---------- INIT ----------
+  (async function init(){
+    renderWeekLabel();
+    await loadStatuses();
+    await loadCalendar();
+    setInterval(loadCalendar, 15 * 60 * 1000); // refresh every 15 min
+  })();
+})();
+</script>
+</body>
+</html>
